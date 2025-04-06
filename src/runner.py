@@ -20,9 +20,10 @@ def handle_seccomp_fds(seccomp_paths):
             os.close(fd)
 
 class BwrapRunner:
-    def __init__(self, config_path: Path, command: List[str]):
+    def __init__(self, config_path: Path, command: List[str], verbose: bool):
         self.config = self._load_config(config_path)
         self.command = command
+        self.verbose = verbose
         self.seccomp_fds = []
 
     def _load_config(self, path: Path) -> BwrapConfig:
@@ -66,6 +67,11 @@ class BwrapRunner:
         for cap in self.config.security.caps_drop:
             args.extend(["--cap-drop", cap])
         args.extend(self.command)
+
+         # Output the constructed command if verbose is enabled
+        if self.verbose:
+            print("Generated command:", " ".join(args))
+
         return args
 
     def execute(self):
