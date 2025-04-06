@@ -37,7 +37,6 @@ class BwrapRunner:
                 raise ValueError(f"Invalid YAML format: {e}")
             except ValidationError as e:
                 raise ValueError(f"Invalid config values: {e}")
-
     def _build_args(self) -> List[str]:
         args = ["bwrap"]
         for ns in self.config.namespaces.unshare:
@@ -48,6 +47,14 @@ class BwrapRunner:
             args.extend(["--map-uid", f"{uid_map.host}:{uid_map.container}"])
         for gid_map in self.config.id_mappings.get("gid", []):
             args.extend(["--map-gid", f"{gid_map.host}:{gid_map.container}"])
+    
+        # Explicitly handle `special` mounts like proc and dev
+        for special_mount in self.config.mounts.get("special", []):
+            if special_mount.get("type") == "proc":
+                args.extend(["--proc", special_mount["dest"]])
+            elif special_mount.get("type") == "dev":
+                args.extend(["--dev", special_mount["dest"]])
+    
         for bind in self.config.mounts.get("binds", []):
             arg_map = {
                 "ro": "--ro-bind",
@@ -56,6 +63,7 @@ class BwrapRunner:
                 "rbind": "--rbind"
             }
             args.extend([arg_map[bind["type"]], bind["src"], bind["dest"]])
+    
         for tmpfs_dir in self.config.mounts.get("tmpfs", []):
             args.extend(["--tmpfs", tmpfs_dir])
         for k, v in self.config.env.get("set", {}).items():
@@ -67,11 +75,11 @@ class BwrapRunner:
         for cap in self.config.security.caps_drop:
             args.extend(["--cap-drop", cap])
         args.extend(self.command)
-
-         # Output the constructed command if verbose is enabled
+        
+        # output command if verbose
         if self.verbose:
             print("Generated command:", " ".join(args))
-
+    
         return args
 
     def execute(self):
