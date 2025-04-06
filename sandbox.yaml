@@ -1,0 +1,30 @@
+command: ["/usr/bin/nvim"]
+mounts:
+  binds:
+    - type: ro
+      src: /usr/bin/nvim
+      dest: /usr/bin/nvim
+    - type: ro
+      src: /lib64
+      dest: /lib64
+    - type: ro
+      src: /usr/lib64
+      dest: /usr/lib64
+    - type: ro
+      src: /usr/lib
+      dest: /usr/lib
+    - type: ro
+      src: /usr/share/nvim
+      dest: /usr/share/nvim
+    - type: ro
+      src: /usr/bin/zsh
+      dest: /usr/bin/zsh
+    - type: ro
+      src: /lib
+      dest: /lib
+    - type: ro
+      src: /etc/zsh
+      dest: /etc/zsh
+  tmpfs:
+    - /home
+
