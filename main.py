@@ -4,9 +4,10 @@ from src.runner import BwrapRunner
 
 @click.command()
 @click.argument('config_path', type=click.Path(exists=True))
-def run_sandbox(config_path):
+@click.argument('command', nargs=-1)
+def run_sandbox(config_path, command):
     """Run the sandbox with the provided YAML configuration."""
-    runner = BwrapRunner(Path(config_path))
+    runner = BwrapRunner(Path(config_path), list(command))
     try:
         runner.execute()
     except subprocess.CalledProcessError as e:

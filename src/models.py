@@ -26,7 +26,6 @@ class BwrapConfig(BaseModel):
     id_mappings: Dict[str, List[UidMap]] = {}
     env: Dict[str, Dict] = {}
     security: SecurityConfig = SecurityConfig()
-    command: List[str]
 
     @model_validator(mode='after')
     def validate_mounts(cls, values):

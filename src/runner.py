@@ -20,8 +20,9 @@ def handle_seccomp_fds(seccomp_paths):
             os.close(fd)
 
 class BwrapRunner:
-    def __init__(self, config_path: Path):
+    def __init__(self, config_path: Path, command: List[str]):
         self.config = self._load_config(config_path)
+        self.command = command
         self.seccomp_fds = []
 
     def _load_config(self, path: Path) -> BwrapConfig:
@@ -64,7 +65,7 @@ class BwrapRunner:
             args.extend(["--cap-add", cap])
         for cap in self.config.security.caps_drop:
             args.extend(["--cap-drop", cap])
-        args.extend(self.config.command)
+        args.extend(self.command)
         return args
 
     def execute(self):
