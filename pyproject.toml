@@ -1,11 +1,25 @@
+# Updated pyproject.toml
 [project]
 name = "bwrappy"
 version = "0.1.0"
-description = "Add your description here"
+description = "A Python wrapper for bubblewrap (bwrap) with YAML configuration support"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
- "click>=8.1.8",
- "pydantic>=2.11.2",
- "pyyaml>=6.0.2",
+    "click>=8.1.8",
+    "pydantic>=2.11.2",
+    "pyyaml>=6.0.2",
 ]
+
+[project.scripts]
+bwrappy = "bwrappy:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]
+
