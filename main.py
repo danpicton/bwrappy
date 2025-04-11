@@ -19,6 +19,9 @@ def run_sandbox(config_paths, command, verbose):
     
     All options must be specified before the command to run.
     
+    Environment variables can be used in YAML files using $VAR or ${VAR} syntax.
+    These will be substituted with their values when the config is loaded.
+
     Example: main.py -c base.yaml -c specific.yaml -v -- echo "hello world"
     """
     try:
