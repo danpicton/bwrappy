@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from typing import List, Dict, Any, Optional
 import fcntl
 import json
+import re
 
 @contextmanager
 def handle_fds(fd_paths, mode=os.O_RDONLY):
@@ -21,6 +22,28 @@ def handle_fds(fd_paths, mode=os.O_RDONLY):
         for fd in fds:
             os.close(fd)
 
+class EnvVarLoader(yaml.SafeLoader):
+    """Custom YAML loader that substitutes environment variables in strings."""
+    
+    # Pattern to match environment variables: ${VAR} or $VAR
+    ENV_VAR_PATTERN = re.compile(r'(?:\$\{([^}^{]+)\})|(?:\$([a-zA-Z0-9_]+))')
+    
+    def construct_scalar(self, node):
+        """Override construct_scalar to replace environment variables in string values."""
+        value = super().construct_scalar(node)
+        if isinstance(value, str):
+            return self._replace_env_vars(value)
+        return value
+    
+    def _replace_env_vars(self, value):
+        """Replace environment variables in a string using the ${VAR} or $VAR syntax."""
+        def replace_var(match):
+            var_name = match.group(1) or match.group(2)
+            # Return the environment variable value or empty string if not found
+            return os.environ.get(var_name, '')
+            
+        return self.ENV_VAR_PATTERN.sub(replace_var, value)
+
 class BwrapRunner:
     def __init__(self, config_paths: List[Path], command: List[str], verbose: bool):
         self.config_paths = config_paths if isinstance(config_paths, list) else [config_paths]
@@ -31,14 +54,16 @@ class BwrapRunner:
         self.fd_map = {}  # Keep track of file descriptors
 
     def _load_config(self, path: Path) -> dict:
-        """Load a single config file and return its contents as a dict."""
+        """Load a single config file and return its contents as a dict with env var substitution."""
         if not path.exists():
             raise FileNotFoundError(f"Config file '{path}' does not exist.")
         with open(path, 'r') as f:
             try:
-                return yaml.safe_load(f) or {}
+                # Use the custom EnvVarLoader for environment variable substitution
+                return yaml.load(f, Loader=EnvVarLoader) or {}
             except yaml.YAMLError as e:
                 raise ValueError(f"Invalid YAML format in {path}: {e}")
+
     def _load_and_merge_configs(self, paths: List[Path]) -> BwrapConfig:
         """Load multiple config files and merge them into a single config."""
         if not paths:

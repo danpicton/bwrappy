@@ -16,6 +16,9 @@ mounts:
       src: /usr/share/nvim
       dest: /usr/share/nvim
     - type: ro
+      src: /usr/bin/git
+      dest: /usr/bin/git
+    - type: ro
       src: /usr/bin/zsh
       dest: /usr/bin/zsh
     - type: ro
@@ -24,6 +27,15 @@ mounts:
     - type: ro
       src: /etc/zsh
       dest: /etc/zsh
+    - src: /home/dan/.config/nvim-python
+      dest: /home/dan/.config/nvim-python
+    - src: /home/dan/projects
+      dest: /home/dan/projects
+  special:
+    - type: proc
+      dest: /proc
+    - type: dev
+      dest: /dev
   tmpfs:
-    - /home
+    - /tmp
 
