@@ -2,12 +2,14 @@
 
 bwrappy is a convenient YAML-based configuration wrapper for Bubblewrap (`bwrap`), a sandbox utility that leverages Linux namespaces to create isolated environments for running applications.
 
+This library has been whipped up quickly with LLMs, along with this README. Basic functionality has been tested, but may be lacking. Please raise an issue if you encounter any.
+
 ## Features
 
 - **YAML Configuration:** Define your sandbox environments in human-readable YAML files
 - **Configuration Stacking:** Combine and override configurations by stacking multiple YAML files
 - **Environment Variable Substitution:** Use `$VAR` or `${VAR}` syntax in configs to incorporate environment variables
-- **Complete Bubblewrap Support:** Supports the full range of Bubblewrap's functionality
+- **Complete Bubblewrap Support:** Supports the full range of Bubblewrap's functionality (unconfirmed at present - see above)
 
 ## Installation
 
