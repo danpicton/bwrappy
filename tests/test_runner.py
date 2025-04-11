@@ -33,7 +33,73 @@ class TestRunner:
         assert runner.config.namespaces.unshare == ["ipc", "pid"]
         assert runner.config.namespaces.share == ["net"]
         assert len(runner.config.mounts["binds"]) == 2
-        
+    
+    def test_merge_configs(self):
+        # Create two temporary config files
+        with tempfile.NamedTemporaryFile(suffix='.yaml', mode='w') as f1, \
+             tempfile.NamedTemporaryFile(suffix='.yaml', mode='w') as f2:
+            
+            # First config with some binds
+            config1 = {
+                "namespaces": {"share": ["net"]},
+                "mounts": {
+                    "binds": [
+                        {"type": "ro", "src": "/etc/passwd", "dest": "/etc/passwd"},
+                        {"type": "ro", "src": "/lib", "dest": "/lib"}
+                    ]
+                }
+            }
+            yaml.dump(config1, f1)
+            f1.flush()
+            
+            # Second config overriding /lib bind and adding new bind
+            config2 = {
+                "mounts": {
+                    "binds": [
+                        {"type": "dev", "src": "/dev", "dest": "/dev"},
+                        {"type": "rbind", "src": "/usr/lib", "dest": "/lib"}  # Override
+                    ],
+                    "tmpfs": ["/tmp"]  # New mount type
+                },
+                "env": {
+                    "set": {"TEST_VAR": "test_value"}
+                }
+            }
+            yaml.dump(config2, f2)
+            f2.flush()
+            
+            # Initialize runner with both configs
+            runner = BwrapRunner([Path(f1.name), Path(f2.name)], ["echo", "hello"], False)
+            
+            # Verify the configs were merged correctly
+            assert runner.config.namespaces.share == ["net"]
+            
+            # Check the binds were merged with /lib properly overridden
+            binds = runner.config.mounts["binds"]
+            assert len(binds) == 3, f"Should have 3 binds after merging, got {len(binds)}"
+            
+            # Find each bind by destination
+            passwd_bind = next((b for b in binds if b["dest"] == "/etc/passwd"), None)
+            lib_bind = next((b for b in binds if b["dest"] == "/lib"), None)
+            dev_bind = next((b for b in binds if b["dest"] == "/dev"), None)
+            
+            assert passwd_bind is not None, "/etc/passwd bind missing"
+            assert passwd_bind["type"] == "ro", "/etc/passwd should be read-only"
+            
+            assert lib_bind is not None, "/lib bind missing" 
+            assert lib_bind["type"] == "rbind", "/lib should be overridden with rbind type"
+            assert lib_bind["src"] == "/usr/lib", "/lib source should be from second config"
+            
+            assert dev_bind is not None, "/dev bind missing"
+            assert dev_bind["type"] == "dev", "/dev should be a dev bind"
+            
+            # Check tmpfs was added
+            assert "tmpfs" in runner.config.mounts
+            assert "/tmp" in runner.config.mounts["tmpfs"]
+            
+            # Check environment was set
+            assert runner.config.env.set["TEST_VAR"] == "test_value"
+
     def test_load_config_nonexistent(self):
         with pytest.raises(FileNotFoundError):
             BwrapRunner(Path("/nonexistent/file"), ["echo"], False)
