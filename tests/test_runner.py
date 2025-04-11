@@ -163,3 +163,43 @@ class TestRunner:
             for fd in fds:
                 with pytest.raises(OSError):
                     os.fstat(fd)
+
+    def test_env_var_substitution(self):
+        """Test that environment variables are correctly substituted in YAML configs."""
+        # Set test environment variables
+        os.environ["TEST_VAR"] = "test_value"
+        os.environ["HOME_DIR"] = "/home/user"
+        
+        with tempfile.NamedTemporaryFile(suffix='.yaml', mode='w') as f:
+            # Config with environment variables in different formats
+            config = """
+            mounts:
+              binds:
+                - type: ro
+                  src: ${HOME_DIR}/.config
+                  dest: /home/app/.config
+                - type: ro
+                  src: $HOME_DIR/data
+                  dest: /data
+            env:
+              set:
+                APP_ENV: $TEST_VAR
+                APP_PATH: ${HOME_DIR}/app
+            """
+            f.write(config)
+            f.flush()
+            
+            runner = BwrapRunner(Path(f.name), ["echo", "hello"], False)
+            
+            # Check that environment variables were substituted
+            binds = runner.config.mounts["binds"]
+            
+            # First bind should use ${VAR} syntax
+            assert binds[0]["src"] == "/home/user/.config"
+            
+            # Second bind should use $VAR syntax
+            assert binds[1]["src"] == "/home/user/data"
+            
+            # Check env vars are also substituted
+            assert runner.config.env.set["APP_ENV"] == "test_value"
+            assert runner.config.env.set["APP_PATH"] == "/home/user/app"
