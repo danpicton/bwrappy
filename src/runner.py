@@ -22,26 +22,77 @@ def handle_fds(fd_paths, mode=os.O_RDONLY):
             os.close(fd)
 
 class BwrapRunner:
-    def __init__(self, config_path: Path, command: List[str], verbose: bool):
-        self.config = self._load_config(config_path)
+    def __init__(self, config_paths: List[Path], command: List[str], verbose: bool):
+        self.config_paths = config_paths if isinstance(config_paths, list) else [config_paths]
+        self.config = self._load_and_merge_configs(self.config_paths)
         self.command = command
         self.verbose = verbose
         self.seccomp_fds = []
         self.fd_map = {}  # Keep track of file descriptors
-        
-    def _load_config(self, path: Path) -> BwrapConfig:
+
+    def _load_config(self, path: Path) -> dict:
+        """Load a single config file and return its contents as a dict."""
         if not path.exists():
             raise FileNotFoundError(f"Config file '{path}' does not exist.")
-        
         with open(path, 'r') as f:
             try:
-                yaml_content = yaml.safe_load(f)
-                return BwrapConfig(**yaml_content)
+                return yaml.safe_load(f) or {}
             except yaml.YAMLError as e:
-                raise ValueError(f"Invalid YAML format: {e}")
-            except Exception as e:
-                raise ValueError(f"Invalid config values: {e}")
+                raise ValueError(f"Invalid YAML format in {path}: {e}")
+
+    def _merge_configs(self, configs: List[dict]) -> dict:
+        """Merge multiple config dictionaries together."""
+        result = {}
+        
+        # Process configs in order, later configs take precedence
+        for config in configs:
+            self._deep_merge(result, config)
+            
+        return result
     
+    def _deep_merge(self, target: dict, source: dict):
+        """
+        Deep merge source dict into target dict.
+        Lists are typically appended, not replaced.
+        """
+        for key, value in source.items():
+            if key not in target:
+                target[key] = value
+            elif isinstance(target[key], dict) and isinstance(value, dict):
+                self._deep_merge(target[key], value)
+            elif isinstance(target[key], list) and isinstance(value, list):
+                # For lists, we typically want to combine rather than replace
+                # Special handling for specific list types
+                if key in ['binds', 'dev', 'tmpfs']:
+                    # For mounts, append the new entries
+                    target[key].extend(value)
+                elif key in ['unshare', 'share', 'seccomp', 'add_seccomp_fd', 
+                             'caps_add', 'caps_drop', 'lock_files', 'unset']:
+                    # For simple lists, eliminate duplicates
+                    target[key] = list(set(target[key] + value))
+                else:
+                    # Default is to append
+                    target[key].extend(value)
+            elif key == 'set' and isinstance(target[key], dict) and isinstance(value, dict):
+                # For env variables, later values override earlier ones
+                target[key].update(value)
+            else:
+                # For other values (booleans, strings, etc.), later values override earlier ones
+                target[key] = value
+
+    def _load_and_merge_configs(self, paths: List[Path]) -> BwrapConfig:
+        """Load multiple config files and merge them into a single config."""
+        if not paths:
+            raise ValueError("At least one config file must be provided.")
+            
+        configs = [self._load_config(path) for path in paths]
+        merged_config = self._merge_configs(configs)
+        
+        try:
+            return BwrapConfig(**merged_config)
+        except Exception as e:
+            raise ValueError(f"Invalid config values after merging: {e}")
+
     def _build_args(self) -> List[str]:
         args = ["bwrap"]
         
