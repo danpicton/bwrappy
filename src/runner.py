@@ -39,59 +39,86 @@ class BwrapRunner:
                 return yaml.safe_load(f) or {}
             except yaml.YAMLError as e:
                 raise ValueError(f"Invalid YAML format in {path}: {e}")
-
-    def _merge_configs(self, configs: List[dict]) -> dict:
-        """Merge multiple config dictionaries together."""
-        result = {}
-        
-        # Process configs in order, later configs take precedence
-        for config in configs:
-            self._deep_merge(result, config)
-            
-        return result
-    
-    def _deep_merge(self, target: dict, source: dict):
-        """
-        Deep merge source dict into target dict.
-        Lists are typically appended, not replaced.
-        """
-        for key, value in source.items():
-            if key not in target:
-                target[key] = value
-            elif isinstance(target[key], dict) and isinstance(value, dict):
-                self._deep_merge(target[key], value)
-            elif isinstance(target[key], list) and isinstance(value, list):
-                # For lists, we typically want to combine rather than replace
-                # Special handling for specific list types
-                if key in ['binds', 'dev', 'tmpfs']:
-                    # For mounts, append the new entries
-                    target[key].extend(value)
-                elif key in ['unshare', 'share', 'seccomp', 'add_seccomp_fd', 
-                             'caps_add', 'caps_drop', 'lock_files', 'unset']:
-                    # For simple lists, eliminate duplicates
-                    target[key] = list(set(target[key] + value))
-                else:
-                    # Default is to append
-                    target[key].extend(value)
-            elif key == 'set' and isinstance(target[key], dict) and isinstance(value, dict):
-                # For env variables, later values override earlier ones
-                target[key].update(value)
-            else:
-                # For other values (booleans, strings, etc.), later values override earlier ones
-                target[key] = value
-
     def _load_and_merge_configs(self, paths: List[Path]) -> BwrapConfig:
         """Load multiple config files and merge them into a single config."""
         if not paths:
             raise ValueError("At least one config file must be provided.")
             
-        configs = [self._load_config(path) for path in paths]
-        merged_config = self._merge_configs(configs)
+        merged_dict = {}
+        for path in paths:
+            config_dict = self._load_config(path)
+            self._deep_merge(merged_dict, config_dict)
         
         try:
-            return BwrapConfig(**merged_config)
+            return BwrapConfig(**merged_dict)
         except Exception as e:
             raise ValueError(f"Invalid config values after merging: {e}")
+
+    def _deep_merge(self, target: dict, source: dict):
+        """
+        Deep merge source dict into target dict with special handling for lists and mount configs.
+        """
+        for key, value in source.items():
+            if key not in target:
+                target[key] = value
+            elif isinstance(target[key], dict) and isinstance(value, dict):
+                # Special handling for mounts section
+                if key == 'mounts':
+                    for mount_type, mount_list in value.items():
+                        if mount_type not in target[key]:
+                            target[key][mount_type] = mount_list
+                        else:
+                            # For mount lists, deduplicate by destination path
+                            self._merge_by_path(target[key][mount_type], mount_list)
+                elif key == 'env' and 'set' in value:
+                    # For env.set, update the dict
+                    if 'set' not in target[key]:
+                        target[key]['set'] = {}
+                    target[key]['set'].update(value.get('set', {}))
+                    
+                    # Handle other env fields
+                    for env_key in ['unset', 'clear']:
+                        if env_key in value:
+                            target[key][env_key] = value[env_key]
+                else:
+                    # Standard dict merge
+                    self._deep_merge(target[key], value)
+            elif isinstance(target[key], list) and isinstance(value, list):
+                if key in ['overlays', 'file_ops'] or (key == 'binds' and 'dest' in value[0] if value else False):
+                    # Merge items by dest path for overlays and file operations
+                    self._merge_by_path(target[key], value)
+                elif key in ['unshare', 'share', 'seccomp', 'add_seccomp_fd', 
+                           'caps_add', 'caps_drop', 'lock_files', 'unset']:
+                    # For simple lists, eliminate duplicates
+                    target[key] = list(dict.fromkeys(target[key] + value))
+                else:
+                    # Default is to append with deduplication for simple values
+                    target[key] = list(dict.fromkeys(target[key] + value))
+            else:
+                # For other values (booleans, strings, etc.), later values override earlier ones
+                target[key] = value
+
+    def _merge_by_path(self, target_list: list, source_list: list):
+        """
+        Merge two lists of items by 'dest' path, replacing existing items.
+        For items that have a 'dest' field (mounts, overlays, file operations).
+        """
+        # Build lookup of existing items by dest path
+        path_map = {}
+        for i, item in enumerate(target_list):
+            if isinstance(item, dict) and 'dest' in item:
+                path_map[item['dest']] = i
+        
+        # Merge in new items, replacing existing ones with same dest
+        for item in source_list:
+            if isinstance(item, dict) and 'dest' in item:
+                if item['dest'] in path_map:
+                    target_list[path_map[item['dest']]] = item
+                else:
+                    target_list.append(item)
+            else:
+                # If item lacks 'dest', just append it
+                target_list.append(item)
 
     def _build_args(self) -> List[str]:
         args = ["bwrap"]
