@@ -26,12 +26,23 @@ sudo dnf install bubblewrap
 sudo pacman -S bubblewrap
 ```
 
-Then install bwrappy:
+Then install download bwrappy:
 
 ```bash
 git clone https://github.com/yourusername/bwrappy.git
 cd bwrappy
+```
+
+**`pip`**
+
+```bash
 pip install -e .
+```
+
+**`uv`**
+
+```bash
+uv install -e .
 ```
 
 ## Usage
