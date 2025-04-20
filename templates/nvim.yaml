@@ -1,0 +1,16 @@
+mounts:
+  binds:
+    - type: ro
+      src: /usr/include
+      dest: /usr/include
+    - type: ro
+      src: /usr/share/nvim
+      dest: /usr/share/nvim
+    - src: ${HOME}/.config/nvim-ide
+      dest: ${HOME}/.config/nvim-ide
+    - src: ${HOME}/.local/state/nvim
+      dest: ${HOME}/.local/state/nvim
+    - src: ${HOME}/.local/share/nvim-ide
+      dest: ${HOME}/.local/share/nvim-ide
+    - src: ${HOME}/projects
+      dest: ${HOME}/projects

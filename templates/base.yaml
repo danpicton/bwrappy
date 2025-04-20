@@ -1,0 +1,45 @@
+namespaces:
+  share:
+    - net
+  unshare:
+    - pid 
+
+mounts:
+  binds:
+    - type: ro
+      src: /lib64
+      dest: /lib64
+    - type: ro
+      src: /usr/lib64
+      dest: /usr/lib64
+    - type: ro
+      src: /usr/lib
+      dest: /usr/lib
+    - type: ro
+      src: /usr/bin
+      dest: /usr/bin
+    - type: ro
+      src: /lib
+      dest: /lib
+
+    # System mounts
+    - type: dev
+      src: /dev
+      dest: /dev
+    - type: proc
+      dest: /proc
+    
+  tmpfs:
+    - /tmp
+
+env:
+  unset:
+    - SSH_AUTH_SOCK
+    - SSH_AGENT_PID
+    - DBUS_SESSION_BUS_ADDRESS
+    - XDG_RUNTIME_DIR
+    - DISPLAY
+    - WAYLAND_DISPLAY
+    - SWAYSOCK
+    - I3SOCK
+    - WEZTERM_UNIX_SOCKET

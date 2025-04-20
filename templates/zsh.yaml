@@ -1,0 +1,15 @@
+mounts:
+  binds:
+    - type: ro
+      src: /usr/bin/zsh
+      dest: /usr/bin/zsh
+    - type: ro
+      src: /etc/zsh
+      dest: /etc/zsh
+    - type: ro
+      src: ${HOME}/.zsh
+      dest: ${HOME}/.zsh
+    - type: ro
+      src: ${HOME}/.zshrc
+      dest: ${HOME}/.zshrc
+

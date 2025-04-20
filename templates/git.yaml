@@ -1,0 +1,22 @@
+mounts:
+  binds:
+    - type: ro
+      src: /usr/share
+      dest: /usr/share
+    - type: ro
+      src: /run/systemd/resolve/stub-resolv.conf
+      dest: /run/systemd/resolve/stub-resolv.conf
+    - type: ro
+      src: /etc
+      dest: /etc
+    - type: ro
+      src: /sbin
+      dest: /sbin
+    - type: ro
+      src: /bin
+      dest: /bin
+    
+    # User configs (read-write)
+    - type: ro
+      src: ${HOME}/.gitconfig
+      dest: ${HOME}/.gitconfig
